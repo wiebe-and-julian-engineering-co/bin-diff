@@ -190,27 +190,29 @@ enum class PatchOperation {
 class Patch {
     PatchOperation m_op;
     size_t m_begin;
-    std::string m_str;
+    std::string m_seq;
 
     Patch(PatchOperation op, size_t begin, std::string&& str) :
         m_op(op),
         m_begin(begin),
-        m_str(str)
+        m_seq(str)
     { }
 
     Patch(PatchOperation op, size_t begin, const std::string& str) :
         m_op(op),
         m_begin(begin),
-        m_str(str)
+        m_seq(str)
     { }
   public:
 
-    static Patch make_addition(const sequence_view& seq) {
+    template <class t_sequenced_type>
+    static Patch make_addition(const sequence_view<t_sequenced_type>& seq) {
         auto str = std::string(std::cbegin(seq), seq.size());
         return Patch(PatchOperation::Addition, seq.index_begin(), std::move(str));
     }
 
-    static Patch make_deletion(const sequence_view& seq) {
+    template <class t_sequenced_type>
+    static Patch make_deletion(const sequence_view<t_sequenced_type>& seq) {
         auto str = std::string(std::cbegin(seq), seq.size());
         return Patch(PatchOperation::Deletion, seq.index_begin(), std::move(str));
     }
@@ -231,14 +233,15 @@ class Patch {
             os << "Undefined";
         }
 
-        os << ": [" << p.m_begin << ':' << p.m_begin + p.m_str.size() << "] - " << p.m_str;
+        os << ": [" << p.m_begin << ':' << p.m_begin + p.m_seq.size() << "] - " << p.m_seq;
 
         return os;
     }
 };
 
 class Diff {
-    std::vector<Patch> _diff(const sequence_view& lhs_seq, const sequence_view& rhs_seq) const {
+    template <class t_sequenced_type>
+    void _diff(const sequence_view<t_sequenced_type>& lhs_seq, const sequence_view<t_sequenced_type>& rhs_seq, std::vector<Patch>& patches) const {
         int32_t lhs_size = lhs_seq.size();
         int32_t rhs_size = rhs_seq.size();
         int32_t max_len = lhs_size + rhs_size;
@@ -287,31 +290,30 @@ class Diff {
                         y = y_initial;
 
                         if (D > 1 || (x != u && y != v)) {
-                            auto temp = std::vector<Patch>(); 
-
-                            std::vector<Patch> forward_subdiff = _diff(
+                            // forward subdiff
+                            _diff(
                                 sequence_view(lhs_seq, 0, x),
-                                sequence_view(rhs_seq, 0, y)
+                                sequence_view(rhs_seq, 0, y),
+                                patches
                             );
 
-                            std::vector<Patch> backward_subdiff = _diff(
+                            // backward subdiff
+                            _diff(
                                 sequence_view(lhs_seq, u, lhs_size),
-                                sequence_view(rhs_seq, v, rhs_size)
+                                sequence_view(rhs_seq, v, rhs_size),
+                                patches
                             );
-                            
-                            temp.reserve(forward_subdiff.size() + backward_subdiff.size());
 
-                            std::copy(forward_subdiff.begin(), forward_subdiff.end(), std::back_inserter(temp));
-                            std::copy(backward_subdiff.begin(), backward_subdiff.end(), std::back_inserter(temp));
-
-                            return temp;
+                            return;
                         }
                         else if (rhs_size > lhs_size) {
-                            return _diff(sequence_view(), sequence_view(rhs_seq, lhs_size, rhs_size));
+                            _diff(sequence_view<t_sequenced_type>(), sequence_view(rhs_seq, lhs_size, rhs_size), patches);
+                            return;
                         } else if (rhs_size < lhs_size) {
-                            return _diff(sequence_view(lhs_seq, rhs_size, lhs_size), sequence_view());
+                            _diff(sequence_view(lhs_seq, rhs_size, lhs_size), sequence_view<t_sequenced_type>(), patches);
+                            return;
                         } else {
-                            return { };
+                            return;
                         }
                     }
                 }
@@ -344,52 +346,53 @@ class Diff {
                         y = rhs_size - y;
 
                         if (D > 1 || (x != u && y != v)) {
-                            auto temp = std::vector<Patch>();
-
-                            std::vector<Patch> forward_subdiff = _diff(
+                            // forward subdiff
+                            _diff(
                                 sequence_view(lhs_seq, 0, x),
-                                sequence_view(rhs_seq, 0, y)
+                                sequence_view(rhs_seq, 0, y),
+                                patches
                             );
 
-                            std::vector<Patch> backward_subdiff = _diff(
+                            // backward subdiff
+                            _diff(
                                 sequence_view(lhs_seq, u, lhs_size),
-                                sequence_view(rhs_seq, v, rhs_size)
+                                sequence_view(rhs_seq, v, rhs_size),
+                                patches
                             );
 
-                            temp.reserve(forward_subdiff.size() + backward_subdiff.size());
-
-                            std::copy(forward_subdiff.begin(), forward_subdiff.end(), std::back_inserter(temp));
-                            std::copy(backward_subdiff.begin(), backward_subdiff.end(), std::back_inserter(temp));
-
-                            return temp;
+                            return;
                         } else if (rhs_size > lhs_size) {
-                            return _diff(sequence_view(), sequence_view(rhs_seq, lhs_size, rhs_size));
+                            _diff(sequence_view<t_sequenced_type>(), sequence_view(rhs_seq, lhs_size, rhs_size), patches);
+                            return;
                         } else if (rhs_size < lhs_size) {
-                            return _diff(sequence_view(lhs_seq, rhs_size, lhs_size), sequence_view());
+                            _diff(sequence_view(lhs_seq, rhs_size, lhs_size), sequence_view<t_sequenced_type>(), patches);
+                            return;
                         } else {
-                            return { };
+                            return;
                         }
                     }
                 }
             }
         }  else if (lhs_size > 0) {
-            return { Patch::make_deletion(lhs_seq) };
-        } else {
-            return { Patch::make_addition(rhs_seq) };
+            patches.push_back(Patch::make_deletion(lhs_seq));
+            return;
+        } else if (rhs_size > 0) {
+            patches.push_back(Patch::make_addition(rhs_seq));
+            return;
         }
-
-        return { };
     }
 
   public:
     Diff() { }
 
-    template <class t_type>
-    static const std::string_view make_string_view(const t_type& s, size_t begin, size_t end) {
-        return std::string_view(&s[begin], end - begin);
-    }
-
-    auto diff(const std::string& lhs, const std::string& rhs) {
-        return _diff(sequence_view(lhs.c_str(), 0, lhs.size()), sequence_view(rhs.c_str(), 0, rhs.size()));
+    const auto diff(const std::string& lhs, const std::string& rhs) {
+        std::vector<Patch> patches;
+        _diff(
+            sequence_view(lhs.c_str(), 0, lhs.size()),
+            sequence_view(rhs.c_str(), 0, rhs.size()),
+            patches
+        );
+        patches.shrink_to_fit();
+        return patches;
     }
 };
