@@ -181,53 +181,60 @@ public:
     }
 };
 
-enum class PatchOperation {
+enum class patch_operation {
     Addition,
-    Deletion,
-    Undefined
+    Deletion
 };
 
-class Patch {
-    PatchOperation m_op;
+/**
+ * @brief patch
+ * 
+ * @details
+ * Patches are differences between sequences. If there is a patch between
+ * sequence `A` and sequence `B`, applying a patch onto sequence `A` will,
+ * possibly partially, turn sequence `A` into `B`
+ */
+class patch {
+    patch_operation m_op;
     size_t m_begin;
     std::string m_seq;
 
-    Patch(PatchOperation op, size_t begin, std::string&& str) :
+    patch(patch_operation op, size_t begin, std::string&& str) :
         m_op(op),
         m_begin(begin),
         m_seq(str)
     { }
 
-    Patch(PatchOperation op, size_t begin, const std::string& str) :
+    patch(patch_operation op, size_t begin, const std::string& str) :
         m_op(op),
         m_begin(begin),
         m_seq(str)
     { }
-  public:
 
+public:
     template <class t_sequenced_type>
-    static Patch make_addition(const sequence_view<t_sequenced_type>& seq) {
+    static patch make_addition(const sequence_view<t_sequenced_type>& seq) {
         auto str = std::string(std::cbegin(seq), seq.size());
-        return Patch(PatchOperation::Addition, seq.index_begin(), std::move(str));
+        return patch(patch_operation::Addition, seq.index_begin(), std::move(str));
     }
 
     template <class t_sequenced_type>
-    static Patch make_deletion(const sequence_view<t_sequenced_type>& seq) {
+    static patch make_deletion(const sequence_view<t_sequenced_type>& seq) {
         auto str = std::string(std::cbegin(seq), seq.size());
-        return Patch(PatchOperation::Deletion, seq.index_begin(), std::move(str));
+        return patch(patch_operation::Deletion, seq.index_begin(), std::move(str));
     }
 
-    PatchOperation GetOperation() {
+    patch_operation GetOperation() {
         return m_op;
     }
 
     template <class t_os>
-    friend t_os& operator<< (t_os& os, const Patch& p) {
+    friend t_os& operator<< (t_os& os, const patch& p) {
         os << "Patch ";
 
-        if (p.m_op == PatchOperation::Addition) {
+        if (p.m_op == patch_operation::Addition) {
             os << "Addition";
-        } else if (p.m_op == PatchOperation::Deletion) {
+        } else if (p.m_op == patch_operation::Deletion) {
             os << "Deletion";
         } else {
             os << "Undefined";
@@ -251,10 +258,10 @@ namespace diff {
          * @tparam t_sequenced_type Type contained in the sequence
          * @param lhs_seq Source sequence
          * @param rhs_seq Destination sequence to generate patches to
-         * @param patches Patches holding vector
+         * @param patches patches holding vector
          */
         template <class t_sequenced_type>
-        void _diff(const sequence_view<t_sequenced_type>& lhs_seq, const sequence_view<t_sequenced_type>& rhs_seq, std::vector<Patch>& patches) {
+        void _diff(const sequence_view<t_sequenced_type>& lhs_seq, const sequence_view<t_sequenced_type>& rhs_seq, std::vector<patch>& patches) {
             int32_t lhs_size = lhs_seq.size();
             int32_t rhs_size = rhs_seq.size();
             int32_t max_len = lhs_size + rhs_size;
@@ -387,10 +394,10 @@ namespace diff {
                     }
                 }
             }  else if (lhs_size > 0) {
-                patches.push_back(Patch::make_deletion(lhs_seq));
+                patches.push_back(patch::make_deletion(lhs_seq));
                 return;
             } else if (rhs_size > 0) {
-                patches.push_back(Patch::make_addition(rhs_seq));
+                patches.push_back(patch::make_addition(rhs_seq));
                 return;
             }
         }
@@ -408,7 +415,7 @@ namespace diff {
      * @return std::vector<patch> Vector of calculated patches
      */
     const auto diff(const std::string& lhs, const std::string& rhs) {
-        std::vector<Patch> patches;
+        std::vector<patch> patches;
         _diff(
             sequence_view(lhs.c_str(), 0, lhs.size()),
             sequence_view(rhs.c_str(), 0, rhs.size()),
