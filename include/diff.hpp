@@ -7,7 +7,30 @@
 #include "sequence_view.hpp"
 
 namespace diff {
-    namespace {
+    template <class t_sequenced_type>
+    class _diff {
+        const sequence_view<t_sequenced_type>& lhs_seq;
+        const sequence_view<t_sequenced_type>& rhs_seq;
+        std::vector<patch>& patches;
+        // int32_t lhs_size = lhs_seq.size();
+        // int32_t rhs_size = rhs_seq.size();
+        // int32_t max_len = lhs_size + rhs_size;
+        // int32_t x_values_len = 2 * std::min(lhs_size, rhs_size) + 2;
+        int32_t lhs_size;
+        int32_t rhs_size;
+        int32_t max_len;
+        int32_t x_values_len;
+
+        int32_t x = 0;
+        int32_t y = 0;
+        int32_t z = 0;
+        int32_t x_initial = 0;
+        int32_t y_initial = 0;
+        int32_t u = 0;
+        int32_t v = 0;
+        int32_t w = 0;
+
+    public:
         /**
          * @brief Optimal diff algorithm
          * 
@@ -20,21 +43,15 @@ namespace diff {
          * @param rhs_seq Destination sequence to generate patches to
          * @param patches patches holding vector
          */
-        template <class t_sequenced_type>
-        void _diff(const sequence_view<t_sequenced_type>& lhs_seq, const sequence_view<t_sequenced_type>& rhs_seq, std::vector<patch>& patches) {
-            int32_t lhs_size = lhs_seq.size();
-            int32_t rhs_size = rhs_seq.size();
-            int32_t max_len = lhs_size + rhs_size;
-            int32_t x_values_len = 2 * std::min(lhs_size, rhs_size) + 2;
-
-            int32_t x = 0;
-            int32_t y = 0;
-            int32_t z = 0;
-            int32_t x_initial = 0;
-            int32_t y_initial = 0;
-            int32_t u = 0;
-            int32_t v = 0;
-
+        _diff(const sequence_view<t_sequenced_type>& lhs_seq, const sequence_view<t_sequenced_type>& rhs_seq, std::vector<patch>& patches) :
+            lhs_seq(lhs_seq),
+            rhs_seq(rhs_seq),
+            patches(patches),
+            lhs_size(lhs_seq.size()),
+            rhs_size(rhs_seq.size()),
+            max_len(lhs_size + rhs_size),
+            x_values_len(2 * std::min(lhs_size, rhs_size) + 2)
+        {
             if (lhs_size > 0 && rhs_size > 0) {
                 int32_t w = lhs_size - rhs_size;
 
@@ -161,7 +178,7 @@ namespace diff {
                 return;
             }
         }
-    }
+    };
 
     /**
      * @brief Optimal diff algorithm
@@ -174,7 +191,7 @@ namespace diff {
      * @param rhs_seq Destination sequence to generate patches to
      * @return std::vector<patch> Vector of calculated patches
      */
-    const auto diff(const std::string& lhs, const std::string& rhs) {
+    inline const auto diff(const std::string& lhs, const std::string& rhs) {
         std::vector<patch> patches;
         _diff(
             sequence_view(lhs.c_str(), 0, lhs.size()),
