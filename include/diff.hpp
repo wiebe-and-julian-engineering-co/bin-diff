@@ -12,10 +12,6 @@ namespace diff {
         const sequence_view<t_sequenced_type>& lhs_seq;
         const sequence_view<t_sequenced_type>& rhs_seq;
         std::vector<patch>& patches;
-        // int32_t lhs_size = lhs_seq.size();
-        // int32_t rhs_size = rhs_seq.size();
-        // int32_t max_len = lhs_size + rhs_size;
-        // int32_t x_values_len = 2 * std::min(lhs_size, rhs_size) + 2;
         int32_t lhs_size;
         int32_t rhs_size;
         int32_t max_len;
