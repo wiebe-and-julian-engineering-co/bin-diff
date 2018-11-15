@@ -102,8 +102,7 @@ namespace diff {
                                 );
 
                                 return;
-                            }
-                            else if (rhs_size > lhs_size) {
+                            } else if (rhs_size > lhs_size) {
                                 _diff(sequence_view<t_sequenced_type>(), sequence_view(rhs_seq, lhs_size, rhs_size), patches);
                                 return;
                             } else if (rhs_size < lhs_size) {
